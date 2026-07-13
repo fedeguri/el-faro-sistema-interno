@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<!--
+  ═══════════════════════════════════════════════════════════════════════════════
+  EL FARO — COMPONENTES VERTICAL INMOBILIARIAS · Firma visual "Plano"
+  ═══════════════════════════════════════════════════════════════════════════════
+  Bloques independientes, listos para insertar:
+
+    COMPONENTE 1 — Buscador + grid de fichas sobre CONFIG_PLANO.propiedades (JS puro)
+    COMPONENTE 2 — Mapa Leaflet + OpenStreetMap (sin API key) sincronizado con filtros
+    COMPONENTE 3 — Ficha de propiedad (galería + cotas mono + visita por WhatsApp)
+    COMPONENTE 4 — Landing de captación de propietarios (pre-tasación → WhatsApp)
+
+  Cada bloque delimitado con ╔═ COMPONENTE N ═╗ en CSS, HTML y JS.
+
+  FUENTE DE VERDAD: en esta demo las propiedades viven en CONFIG_PLANO.propiedades.
+  En producción hay dos opciones (playbook, sección 2):
+    Base:        mismo array acá, editado a mano (o propiedades.json en el repo + fetch)
+    Crecimiento: Google Sheet publicada como CSV → fetch + parseo (el cliente carga solo)
+  REGLA DE 48 HS: propiedad vendida/alquilada = estado 'vendida' o fuera del array.
+
+  LEAFLET: se carga desde cdnjs (sin API key, sin costo). Si no carga (sin conexión),
+  el componente degrada con un aviso — el buscador y las fichas siguen funcionando.
+-->
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>El Faro — Componentes Inmobiliarias · Plano</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+/* ═══════════════ TOKENS DE LA VERTICAL (firma "Plano") ═══════════════ */
+:root{
+  --papel:   #FDFDFB;
+  --grafito: #1E2124;
+  --gris:    #6E7378;
+  --linea:   #E4E2DC;
+  --acento:  #2C5F7C;        /* REEMPLAZAR por cliente: cianotipo #2C5F7C · ladrillo #A34A2A · bosque #33574A */
+  --acento-hover:#224B63;
+  --reticula: rgba(30,33,36,.05);   /* la retícula de plano */
+  --radio:6px;
+  --f-titulo:'Space Grotesk', system-ui, sans-serif;
+  --f-mono:'IBM Plex Mono', monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:var(--f-titulo);background:var(--papel);color:var(--grafito);line-height:1.6;}
+/* La retícula: fondo de plano arquitectónico en secciones clave */
+.reticula{background-image:
+  linear-gradient(var(--reticula) 1px, transparent 1px),
+  linear-gradient(90deg, var(--reticula) 1px, transparent 1px);
+  background-size:32px 32px;}
+.demo-seccion{max-width:1080px;margin:0 auto;padding:4.2rem 1.4rem;}
+.eyebrow{font-family:var(--f-mono);font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--acento);margin-bottom:.6rem;}
+h2{font-weight:600;font-size:clamp(1.55rem,3.4vw,2.2rem);margin-bottom:1.4rem;letter-spacing:-.01em;}
+.mono{font-family:var(--f-mono);}
+.ic{width:1em;height:1em;flex:0 0 auto;vertical-align:-0.12em;}
+@media(prefers-reduced-motion: reduce){
+  *,*::before,*::after{transition:none !important;animation:none !important;}
+}
+
+/* ╔═══════════════ COMPONENTE 1 — BUSCADOR + GRID DE FICHAS ═══════════════╗ */
+.buscador{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.7rem;
+  background:#fff;border:1px solid var(--linea);border-radius:var(--radio);padding:1rem;margin-bottom:.8rem;}
+.buscador label{display:block;font-family:var(--f-mono);font-size:.62rem;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--gris);margin-bottom:.3rem;}
+.buscador select,.buscador input{width:100%;padding:.6rem .7rem;border:1.5px solid var(--linea);
+  border-radius:5px;font-family:var(--f-titulo);font-size:.88rem;color:var(--grafito);background:var(--papel);}
+.buscador select:focus,.buscador input:focus{outline:none;border-color:var(--acento);}
+.resultados-info{font-family:var(--f-mono);font-size:.72rem;color:var(--gris);margin-bottom:1.2rem;
+  display:flex;justify-content:space-between;flex-wrap:wrap;gap:.5rem;}
+.props-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1.4rem;}
+.prop-card{background:#fff;border:1px solid var(--linea);border-radius:var(--radio);overflow:hidden;
+  cursor:pointer;transition:transform .25s, box-shadow .25s, border-color .25s;}
+.prop-card:hover{transform:translateY(-4px);box-shadow:0 14px 34px -14px rgba(30,33,36,.25);}
+.prop-card.resaltada{border-color:var(--acento);box-shadow:0 0 0 2px var(--acento);}
+.prop-foto{aspect-ratio:4/3;overflow:hidden;position:relative;}
+.prop-foto img{width:100%;height:100%;object-fit:cover;display:block;}
+.prop-op{position:absolute;top:.7rem;left:.7rem;font-family:var(--f-mono);font-size:.62rem;
+  letter-spacing:.12em;text-transform:uppercase;background:var(--grafito);color:#fff;
+  padding:.3rem .55rem;border-radius:3px;}
+.prop-op.alquiler{background:var(--acento);}
+.prop-estado{position:absolute;top:.7rem;right:.7rem;font-family:var(--f-mono);font-size:.62rem;
+  letter-spacing:.1em;text-transform:uppercase;background:#fff;color:var(--grafito);
+  padding:.3rem .55rem;border-radius:3px;border:1px solid var(--linea);}
+.prop-cuerpo{padding:1.1rem 1.2rem 1.25rem;}
+.prop-precio{font-family:var(--f-mono);font-size:1.02rem;font-weight:500;margin-bottom:.25rem;}
+.prop-titulo{font-weight:600;font-size:.98rem;margin-bottom:.15rem;}
+.prop-zona{font-size:.82rem;color:var(--gris);margin-bottom:.7rem;}
+/* Cotas en mono: la firma tipográfica de la vertical */
+.prop-cotas{font-family:var(--f-mono);font-size:.7rem;letter-spacing:.06em;color:var(--acento);
+  border-top:1px dashed var(--linea);padding-top:.7rem;}
+.sin-resultados{grid-column:1/-1;text-align:center;padding:3rem 1rem;color:var(--gris);
+  border:1.5px dashed var(--linea);border-radius:var(--radio);}
+/* ╚════════════════════════════ fin componente 1 ════════════════════════════╝ */
+
+/* ╔═══════════════ COMPONENTE 2 — MAPA LEAFLET ═══════════════╗ */
+.mapa-wrap{position:relative;border:1px solid var(--linea);border-radius:var(--radio);overflow:hidden;margin-bottom:2rem;}
+#mapa{height:380px;width:100%;background:var(--papel);}
+.mapa-aviso{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-family:var(--f-mono);font-size:.78rem;color:var(--gris);text-align:center;padding:1rem;}
+/* Rosa de los vientos: sello de la vertical, esquina del mapa */
+.rosa-vientos{position:absolute;bottom:.8rem;left:.8rem;width:44px;height:44px;z-index:500;
+  color:var(--grafito);opacity:.75;pointer-events:none;}
+.marker-plano{background:var(--acento);width:14px;height:14px;border-radius:50%;
+  border:2.5px solid #fff;box-shadow:0 1px 6px rgba(0,0,0,.35);}
+/* ╚════════════════════════════ fin componente 2 ════════════════════════════╝ */
+
+/* ╔═══════════════ COMPONENTE 3 — FICHA DE PROPIEDAD (modal) ═══════════════╗ */
+.ficha-overlay{position:fixed;inset:0;background:rgba(30,33,36,.65);z-index:100;
+  display:none;align-items:center;justify-content:center;padding:1rem;}
+.ficha-overlay.abierta{display:flex;}
+.ficha-modal{background:var(--papel);border-radius:var(--radio);max-width:860px;width:100%;
+  max-height:92vh;overflow-y:auto;position:relative;}
+.ficha-cerrar{position:absolute;top:.8rem;right:.8rem;z-index:5;width:36px;height:36px;
+  border-radius:50%;border:none;background:var(--grafito);color:#fff;font-size:1.1rem;
+  cursor:pointer;line-height:1;}
+/* Galería con lightbox simple (patrón adaptado de Turismo) */
+.galeria{position:relative;aspect-ratio:16/9;overflow:hidden;background:var(--grafito);}
+.galeria img{width:100%;height:100%;object-fit:cover;display:block;}
+.gal-nav{position:absolute;top:50%;transform:translateY(-50%);width:40px;height:40px;
+  border-radius:50%;border:none;background:rgba(253,253,251,.92);color:var(--grafito);
+  font-size:1.15rem;cursor:pointer;}
+.gal-prev{left:.8rem;}
+.gal-next{right:.8rem;}
+.gal-contador{position:absolute;bottom:.8rem;right:.8rem;font-family:var(--f-mono);
+  font-size:.68rem;background:rgba(30,33,36,.75);color:#fff;padding:.3rem .6rem;border-radius:3px;}
+.ficha-cuerpo{padding:1.6rem 1.8rem 1.9rem;}
+.ficha-cuerpo .prop-precio{font-size:1.3rem;}
+.ficha-cuerpo h3{font-size:1.3rem;font-weight:600;}
+.ficha-cotas-xl{font-family:var(--f-mono);font-size:.82rem;letter-spacing:.06em;color:var(--acento);
+  margin:.8rem 0 1rem;padding:.8rem 0;border-top:1px dashed var(--linea);border-bottom:1px dashed var(--linea);}
+.ficha-desc{font-size:.92rem;color:var(--gris);margin-bottom:1.4rem;max-width:62ch;}
+/* Visita: mini form + WhatsApp prellenado (sin calendario — se coordina por WA) */
+.visita{background:#fff;border:1px solid var(--linea);border-radius:var(--radio);padding:1.3rem;}
+.visita h4{font-size:1rem;font-weight:600;margin-bottom:.9rem;}
+.visita-campos{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.7rem;margin-bottom:.9rem;}
+@media(max-width:640px){.visita-campos{grid-template-columns:1fr;}}
+.visita label{display:block;font-family:var(--f-mono);font-size:.6rem;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--gris);margin-bottom:.3rem;}
+.visita input{width:100%;padding:.6rem .7rem;border:1.5px solid var(--linea);border-radius:5px;
+  font-family:var(--f-titulo);font-size:.88rem;}
+.visita input:focus{outline:none;border-color:var(--acento);}
+.btn-wa{display:inline-flex;align-items:center;justify-content:center;gap:.55rem;width:100%;
+  padding:.9rem;border:none;border-radius:6px;cursor:pointer;background:var(--acento);color:#fff;
+  font-family:var(--f-titulo);font-weight:600;font-size:.92rem;transition:background .25s;}
+.btn-wa:hover{background:var(--acento-hover);}
+/* ╚════════════════════════════ fin componente 3 ════════════════════════════╝ */
+
+/* ╔═══════════════ COMPONENTE 4 — LANDING DE PROPIETARIOS ═══════════════╗
+   El diferencial estratégico de la vertical: captar DUEÑOS (la exclusiva),
+   no solo compradores. En el sitio real vive en /vende-tu-propiedad y se
+   enlaza desde el header — nunca escondida. */
+.propietarios{background:var(--grafito);color:var(--papel);}
+.propietarios .eyebrow{color:#8FB8CE;}
+.propietarios h2{color:#fff;max-width:22ch;}
+.prop-grid2{display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:start;}
+@media(max-width:820px){.prop-grid2{grid-template-columns:1fr;}}
+.prop-args{list-style:none;display:flex;flex-direction:column;gap:1rem;margin-top:1.4rem;}
+.prop-args li{display:flex;gap:.8rem;font-size:.94rem;color:#C9CDD1;}
+.prop-args .num{font-family:var(--f-mono);color:#8FB8CE;font-size:.8rem;padding-top:.15rem;}
+.prop-args b{color:#fff;}
+.form-tasacion{background:var(--papel);color:var(--grafito);border-radius:var(--radio);padding:1.6rem;}
+.form-tasacion h3{font-size:1.05rem;font-weight:600;margin-bottom:.3rem;}
+.form-tasacion .nota{font-size:.78rem;color:var(--gris);margin-bottom:1.1rem;}
+.tas-campos{display:grid;grid-template-columns:1fr 1fr;gap:.7rem;margin-bottom:.9rem;}
+@media(max-width:520px){.tas-campos{grid-template-columns:1fr;}}
+.tas-campos .ancho{grid-column:1/-1;}
+.form-tasacion label{display:block;font-family:var(--f-mono);font-size:.6rem;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--gris);margin-bottom:.3rem;}
+.form-tasacion input,.form-tasacion select{width:100%;padding:.6rem .7rem;border:1.5px solid var(--linea);
+  border-radius:5px;font-family:var(--f-titulo);font-size:.88rem;background:#fff;}
+.form-tasacion input:focus,.form-tasacion select:focus{outline:none;border-color:var(--acento);}
+.tas-privacidad{font-family:var(--f-mono);font-size:.62rem;color:var(--gris);margin-top:.7rem;}
+/* ╚════════════════════════════ fin componente 4 ════════════════════════════╝ */
+
+footer.demo-footer{padding:2rem 1.4rem;text-align:center;font-family:var(--f-mono);
+  font-size:.66rem;color:var(--gris);border-top:1px solid var(--linea);}
+</style>
+</head>
+<body>
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true"><defs>
+<symbol id="i-wa" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.966-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></symbol>
+<symbol id="i-rosa" viewBox="0 0 44 44" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><circle cx="22" cy="22" r="19"/><path d="M22 5l3.5 14L22 39l-3.5-20z" fill="currentColor" stroke="none" opacity=".85"/><path d="M5 22h6M33 22h6"/><text x="22" y="13" font-family="monospace" font-size="7" fill="currentColor" stroke="none" text-anchor="middle">N</text></symbol>
+</defs></svg>
+
+<!-- ╔═══════════════ COMPONENTES 1 + 2 — HTML (buscador, mapa, grid) ═══════════════╗ -->
+<section class="demo-seccion reticula">
+  <p class="eyebrow">Propiedades</p>
+  <h2>Encontrá tu próximo lugar</h2>
+
+  <!-- COMPONENTE 1: los filtros operan sobre CONFIG_PLANO.propiedades -->
+  <div class="buscador">
+    <div><label>Operación</label>
+      <select id="fOperacion"><option value="">Todas</option><option value="venta">Venta</option><option value="alquiler">Alquiler</option></select></div>
+    <div><label>Tipo</label><select id="fTipo"><option value="">Todos</option></select></div>
+    <div><label>Zona</label><select id="fZona"><option value="">Todas</option></select></div>
+    <div><label>Ambientes (mín.)</label>
+      <select id="fAmb"><option value="">Cualquiera</option><option value="1">1+</option><option value="2">2+</option><option value="3">3+</option><option value="4">4+</option></select></div>
+    <div><label>Precio máx. (USD)</label><input type="number" id="fPrecio" placeholder="Sin límite" min="0" step="5000"></div>
+  </div>
+  <div class="resultados-info">
+    <span id="resInfo"></span>
+    <span id="resActualizada"></span>
+  </div>
+
+  <!-- COMPONENTE 2: mapa sincronizado con los filtros -->
+  <div class="mapa-wrap">
+    <div id="mapa"></div>
+    <div class="mapa-aviso" id="mapaAviso" hidden>El mapa no pudo cargarse. Las propiedades siguen disponibles abajo.</div>
+    <svg class="rosa-vientos" aria-hidden="true"><use href="#i-rosa"/></svg>
+  </div>
+
+  <div class="props-grid" id="propsGrid"><!-- Generado desde CONFIG_PLANO.propiedades --></div>
+</section>
+<!-- ╚═══════════════ fin componentes 1 + 2 — HTML ═══════════════╝ -->
+
+<!-- ╔═══════════════ COMPONENTE 3 — HTML (modal de ficha) ═══════════════╗ -->
+<div class="ficha-overlay" id="fichaOverlay" role="dialog" aria-modal="true">
+  <div class="ficha-modal">
+    <button class="ficha-cerrar" id="fichaCerrar" aria-label="Cerrar">✕</button>
+    <div class="galeria">
+      <img id="galImg" alt="Foto de la propiedad">
+      <button class="gal-nav gal-prev" id="galPrev" aria-label="Foto anterior">‹</button>
+      <button class="gal-nav gal-next" id="galNext" aria-label="Foto siguiente">›</button>
+      <span class="gal-contador" id="galContador"></span>
+    </div>
+    <div class="ficha-cuerpo">
+      <p class="prop-precio" id="fPrecioTxt"></p>
+      <h3 id="fTitulo"></h3>
+      <p class="prop-zona" id="fZonaTxt"></p>
+      <p class="ficha-cotas-xl" id="fCotas"></p>
+      <p class="ficha-desc" id="fDesc"></p>
+      <div class="visita">
+        <h4>Agendar una visita</h4>
+        <div class="visita-campos">
+          <div><label>Tu nombre</label><input type="text" id="vNombre" placeholder="Nombre y apellido"></div>
+          <div><label>Tu teléfono</label><input type="tel" id="vTel" placeholder="Ej: 266 4 123456"></div>
+          <div><label>Día tentativo</label><input type="text" id="vDia" placeholder="Ej: sábado a la mañana"></div>
+        </div>
+        <button class="btn-wa" id="btnVisita">
+          <svg class="ic" aria-hidden="true"><use href="#i-wa"/></svg> Coordinar visita por WhatsApp
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- ╚═══════════════ fin componente 3 — HTML ═══════════════╝ -->
+
+<!-- ╔═══════════════ COMPONENTE 4 — HTML (landing propietarios) ═══════════════╗ -->
+<section class="propietarios">
+  <div class="demo-seccion">
+    <p class="eyebrow">Para propietarios</p>
+    <h2>¿Cuánto vale hoy tu propiedad? Averigualo sin cargo.</h2>
+    <div class="prop-grid2">
+      <div>
+        <ul class="prop-args">
+          <li><span class="num">01</span><span><b>Tasación fundamentada,</b> con propiedades comparables de tu zona — no un número inflado para conquistarte.</span></li>
+          <li><span class="num">02</span><span><b>Plan de difusión concreto:</b> tu propiedad en los portales, en nuestro sitio y en redes, con fotos profesionales.</span></li>
+          <li><span class="num">03</span><span><b>Reporte periódico:</b> sabés cuántas consultas y visitas tuvo tu propiedad, todas las semanas.</span></li>
+        </ul>
+      </div>
+      <div class="form-tasacion">
+        <h3>Pedí tu pre-tasación</h3>
+        <p class="nota">Con estos datos te contactamos UNA vez por WhatsApp con una primera estimación y los pasos.</p>
+        <div class="tas-campos">
+          <div class="ancho"><label>Zona o dirección aproximada</label><input type="text" id="tZona" placeholder="Ej: Juana Koslay, cerca de la ruta"></div>
+          <div><label>Tipo</label>
+            <select id="tTipo"><option>Casa</option><option>Departamento</option><option>Terreno</option><option>Local</option><option>Campo / quinta</option></select></div>
+          <div><label>Superficie aprox. (m²)</label><input type="number" id="tM2" placeholder="Ej: 120" min="0"></div>
+          <div><label>Estado</label>
+            <select id="tEstado"><option>Muy bueno</option><option>Bueno</option><option>A refaccionar</option><option>A estrenar</option></select></div>
+          <div><label>Tu teléfono</label><input type="tel" id="tTel" placeholder="Ej: 266 4 123456"></div>
+        </div>
+        <button class="btn-wa" id="btnTasacion">
+          <svg class="ic" aria-hidden="true"><use href="#i-wa"/></svg> Pedir pre-tasación por WhatsApp
+        </button>
+        <p class="tas-privacidad">SIN COMPROMISO · TUS DATOS NO SE COMPARTEN · TE CONTACTAMOS UNA SOLA VEZ</p>
+      </div>
+    </div>
+  </div>
+</section>
+<!-- ╚═══════════════ fin componente 4 — HTML ═══════════════╝ -->
+
+<footer class="demo-footer" id="pieMatricula"></footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+/* ════════════════════════════════════════════════════════════════════════════
+   CONFIG_PLANO — único lugar con datos del cliente.
+   En producción: este array puede venir de propiedades.json (fetch) o de una
+   Google Sheet publicada como CSV. REGLA: vendida/alquilada → estado o afuera en 48 hs.
+   ════════════════════════════════════════════════════════════════════════════ */
+const CONFIG_PLANO = {
+  nombreInmobiliaria: 'Andrada Propiedades',
+  matricula: 'CORREDOR PÚBLICO MAT. 312 · COL. SAN LUIS',
+  whatsapp: '5492660000000',              // REEMPLAZAR: solo dígitos con código de país
+  centroMapa: [-33.10, -66.20],           // centro inicial del mapa [lat, lng]
+  zoomInicial: 9,
+  ultimaActualizacion: '11 JUL 2026',     // se actualiza con cada cambio de cartera
+  propiedades: [
+    { id:'JK-014', operacion:'venta',    tipo:'Casa',         zona:'Juana Koslay',          precio:95000,  moneda:'USD', m2:140, amb:4, extras:'GARAGE · PATIO · PARRILLA',
+      lat:-33.285, lng:-66.243, estado:'disponible',
+      desc:'Casa de 3 dormitorios sobre lote de 600 m², a 5 minutos del acceso a la autopista. Cocina renovada, galería con parrilla y riego por goteo en el parque.' },
+    { id:'SL-102', operacion:'alquiler', tipo:'Departamento', zona:'San Luis Centro',       precio:380,    moneda:'USD', m2:55,  amb:2, extras:'BALCÓN · COCHERA OPCIONAL',
+      lat:-33.301, lng:-66.337, estado:'disponible',
+      desc:'Departamento de 1 dormitorio a dos cuadras de la plaza Pringles. Edificio con ascensor, expensas bajas. Requisitos: recibo de sueldo o garantía propietaria.' },
+    { id:'ME-207', operacion:'venta',    tipo:'Cabaña',       zona:'Merlo',                 precio:78000,  moneda:'USD', m2:85,  amb:3, extras:'VISTA SIERRAS · APTA RENTA',
+      lat:-32.348, lng:-65.014, estado:'disponible',
+      desc:'Cabaña de piedra y madera en el circuito turístico de Merlo, con historial de alquiler temporario comprobable. Se vende equipada.' },
+    { id:'PF-033', operacion:'venta',    tipo:'Terreno',      zona:'Potrero de los Funes',  precio:35000,  moneda:'USD', m2:800, amb:0, extras:'ESCRITURA · SERVICIOS AL PIE',
+      lat:-33.213, lng:-66.230, estado:'disponible',
+      desc:'Lote de 800 m² con pendiente suave y vista al dique. Luz y agua en la línea municipal, apto plan de vivienda.' },
+    { id:'SF-051', operacion:'alquiler', tipo:'Local',        zona:'San Fco. del Monte de Oro', precio:290, moneda:'USD', m2:70,  amb:1, extras:'ESQUINA · VIDRIERA DOBLE',
+      lat:-32.598, lng:-66.123, estado:'disponible',
+      desc:'Local comercial en esquina céntrica, con baño y depósito. Ideal gastronomía o indumentaria. Contrato comercial 36 meses.' },
+    { id:'ET-078', operacion:'venta',    tipo:'Casa',         zona:'El Trapiche',           precio:120000, moneda:'USD', m2:180, amb:5, extras:'COSTA DE RÍO · PILETA',
+      lat:-33.106, lng:-66.058, estado:'reservada',
+      desc:'Casa quinta a 150 metros del río Trapiche: 4 dormitorios, quincho cerrado y pileta. Título perfecto, se escucha permuta parcial.' },
+  ]
+};
+const REDUCE_I = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+const waUrlI = (t) => `https://wa.me/${CONFIG_PLANO.whatsapp}?text=${t}`;
+const fmtPrecio = (p) => p.operacion === 'alquiler'
+  ? `${p.moneda} ${p.precio.toLocaleString('es-AR')}/mes`
+  : `${p.moneda} ${p.precio.toLocaleString('es-AR')}`;
+const cotas = (p) => [ p.m2 ? `${p.m2} M²` : null, p.amb ? `${p.amb} AMB` : null, p.extras ]
+  .filter(Boolean).join(' · ');
+// Fotos demo: 3 placeholders por propiedad (en producción: rutas reales /assets/img/)
+const fotoDemo = (p, n) => {
+  const tonos = ['%23C9CDD1','%23B4BDC4','%23D8D2C6'];
+  return `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 600'%3E%3Crect width='800' height='600' fill='${tonos[n]}'/%3E%3Ctext x='400' y='290' font-family='monospace' font-size='26' fill='%231E2124' text-anchor='middle'%3E${encodeURIComponent(p.id)} · FOTO ${n+1}%3C/text%3E%3Ctext x='400' y='330' font-family='monospace' font-size='18' fill='%236E7378' text-anchor='middle'%3E(reemplazar por foto real)%3C/text%3E%3C/svg%3E`;
+};
+
+/* ╔═══════════════ COMPONENTE 1 — JS (buscador + grid) ═══════════════╗ */
+const propsGrid = document.getElementById('propsGrid');
+const filtros = { operacion:'', tipo:'', zona:'', amb:'', precio:'' };
+
+// Poblar selects de tipo y zona desde los datos (sin hardcodear opciones)
+[...new Set(CONFIG_PLANO.propiedades.map(p=>p.tipo))].forEach(t=>{
+  document.getElementById('fTipo').insertAdjacentHTML('beforeend', `<option>${t}</option>`);
+});
+[...new Set(CONFIG_PLANO.propiedades.map(p=>p.zona))].forEach(z=>{
+  document.getElementById('fZona').insertAdjacentHTML('beforeend', `<option>${z}</option>`);
+});
+
+function propsFiltradas(){
+  return CONFIG_PLANO.propiedades.filter(p=>
+    (!filtros.operacion || p.operacion === filtros.operacion) &&
+    (!filtros.tipo     || p.tipo === filtros.tipo) &&
+    (!filtros.zona     || p.zona === filtros.zona) &&
+    (!filtros.amb      || p.amb >= parseInt(filtros.amb)) &&
+    (!filtros.precio   || p.precio <= parseFloat(filtros.precio))
+  );
+}
+function pintarGrid(){
+  const lista = propsFiltradas();
+  propsGrid.innerHTML = '';
+  document.getElementById('resInfo').textContent =
+    `${lista.length} PROPIEDAD${lista.length===1?'':'ES'} ENCONTRADA${lista.length===1?'':'S'}`;
+  if(!lista.length){
+    propsGrid.innerHTML = '<div class="sin-resultados">No hay propiedades con esos filtros.<br>Probá ampliar la búsqueda — o escribinos: puede haber algo por entrar a cartera.</div>';
+  }
+  lista.forEach(p=>{
+    const card = document.createElement('article');
+    card.className = 'prop-card';
+    card.dataset.id = p.id;
+    card.innerHTML = `
+      <div class="prop-foto">
+        <img src="${fotoDemo(p,0)}" alt="${p.tipo} en ${p.zona}" loading="lazy">
+        <span class="prop-op ${p.operacion}">${p.operacion}</span>
+        ${p.estado !== 'disponible' ? `<span class="prop-estado">${p.estado}</span>` : ''}
+      </div>
+      <div class="prop-cuerpo">
+        <p class="prop-precio">${fmtPrecio(p)}</p>
+        <p class="prop-titulo">${p.tipo} · ${p.id}</p>
+        <p class="prop-zona">${p.zona}</p>
+        <p class="prop-cotas">${cotas(p)}</p>
+      </div>`;
+    card.addEventListener('click', ()=> abrirFicha(p.id));
+    propsGrid.appendChild(card);
+  });
+  pintarMarkers(lista);
+}
+['fOperacion','fTipo','fZona','fAmb','fPrecio'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', (e)=>{
+    filtros[{fOperacion:'operacion',fTipo:'tipo',fZona:'zona',fAmb:'amb',fPrecio:'precio'}[id]] = e.target.value;
+    pintarGrid();
+  });
+});
+document.getElementById('resActualizada').textContent = 'CARTERA ACTUALIZADA: ' + CONFIG_PLANO.ultimaActualizacion;
+/* ╚═══════════════ fin componente 1 — JS ═══════════════╝ */
+
+/* ╔═══════════════ COMPONENTE 2 — JS (mapa Leaflet, degradación elegante) ═══════════════╗ */
+let mapa = null, capaMarkers = null;
+function iniciarMapa(){
+  if(typeof L === 'undefined'){   // Leaflet no cargó (sin conexión / CDN caído)
+    document.getElementById('mapaAviso').hidden = false;
+    return;
+  }
+  mapa = L.map('mapa', { scrollWheelZoom:false }).setView(CONFIG_PLANO.centroMapa, CONFIG_PLANO.zoomInicial);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 18,
+    attribution: '&copy; OpenStreetMap'
+  }).addTo(mapa);
+  capaMarkers = L.layerGroup().addTo(mapa);
+}
+function pintarMarkers(lista){
+  if(!mapa || !capaMarkers) return;
+  capaMarkers.clearLayers();
+  lista.forEach(p=>{
+    const icono = L.divIcon({ className:'marker-plano', iconSize:[14,14] });
+    L.marker([p.lat, p.lng], { icon: icono, title: `${p.tipo} en ${p.zona}` })
+      .addTo(capaMarkers)
+      .bindPopup(`<b>${fmtPrecio(p)}</b><br>${p.tipo} · ${p.zona}`)
+      .on('click', ()=> resaltarCard(p.id));   // click en marker → resalta la ficha
+  });
+}
+function resaltarCard(id){
+  document.querySelectorAll('.prop-card').forEach(c=>c.classList.remove('resaltada'));
+  const card = document.querySelector(`.prop-card[data-id="${id}"]`);
+  if(card){
+    card.classList.add('resaltada');
+    if(card.scrollIntoView) card.scrollIntoView({behavior: REDUCE_I ? 'auto' : 'smooth', block:'center'});
+    setTimeout(()=>card.classList.remove('resaltada'), 2600);
+  }
+}
+try{ iniciarMapa(); } catch(e){ document.getElementById('mapaAviso').hidden = false; }
+pintarGrid();
+/* ╚═══════════════ fin componente 2 — JS ═══════════════╝ */
+
+/* ╔═══════════════ COMPONENTE 3 — JS (ficha + galería + visita por WA) ═══════════════╗ */
+const overlay = document.getElementById('fichaOverlay');
+let propActiva = null, fotoIdx = 0;
+const FOTOS_POR_PROP = 3;
+
+function abrirFicha(id){
+  propActiva = CONFIG_PLANO.propiedades.find(p=>p.id===id);
+  if(!propActiva) return;
+  fotoIdx = 0;
+  document.getElementById('fPrecioTxt').textContent = fmtPrecio(propActiva);
+  document.getElementById('fTitulo').textContent = `${propActiva.tipo} en ${propActiva.zona}`;
+  document.getElementById('fZonaTxt').textContent = `Ref. ${propActiva.id} · ${propActiva.zona}, San Luis`;
+  document.getElementById('fCotas').textContent = cotas(propActiva);
+  document.getElementById('fDesc').textContent = propActiva.desc;
+  pintarFoto();
+  overlay.classList.add('abierta');
+}
+function pintarFoto(){
+  document.getElementById('galImg').src = fotoDemo(propActiva, fotoIdx);
+  document.getElementById('galContador').textContent = `${fotoIdx+1} / ${FOTOS_POR_PROP}`;
+}
+document.getElementById('galPrev').addEventListener('click', ()=>{ fotoIdx = (fotoIdx-1+FOTOS_POR_PROP)%FOTOS_POR_PROP; pintarFoto(); });
+document.getElementById('galNext').addEventListener('click', ()=>{ fotoIdx = (fotoIdx+1)%FOTOS_POR_PROP; pintarFoto(); });
+document.getElementById('fichaCerrar').addEventListener('click', ()=> overlay.classList.remove('abierta'));
+overlay.addEventListener('click', (e)=>{ if(e.target === overlay) overlay.classList.remove('abierta'); });
+
+document.getElementById('btnVisita').addEventListener('click', ()=>{
+  const v = id => (document.getElementById(id).value || '—').trim() || '—';
+  const msg = `Hola! Quiero coordinar una visita con ${encodeURIComponent(CONFIG_PLANO.nombreInmobiliaria)}%0A%0A`
+    + `Propiedad: ${encodeURIComponent(propActiva.tipo + ' en ' + propActiva.zona)} (Ref. ${propActiva.id})%0A`
+    + `Precio publicado: ${encodeURIComponent(fmtPrecio(propActiva))}%0A`
+    + `Día tentativo: ${encodeURIComponent(v('vDia'))}%0A`
+    + `Nombre: ${encodeURIComponent(v('vNombre'))}%0A`
+    + `Teléfono: ${encodeURIComponent(v('vTel'))}`;
+  window.open(waUrlI(msg), '_blank');
+});
+/* ╚═══════════════ fin componente 3 — JS ═══════════════╝ */
+
+/* ╔═══════════════ COMPONENTE 4 — JS (pre-tasación → WA) ═══════════════╗ */
+document.getElementById('btnTasacion').addEventListener('click', ()=>{
+  const v = id => (document.getElementById(id).value || '—').toString().trim() || '—';
+  const msg = `Hola! Quiero una pre-tasación de mi propiedad (${encodeURIComponent(CONFIG_PLANO.nombreInmobiliaria)})%0A%0A`
+    + `Zona: ${encodeURIComponent(v('tZona'))}%0A`
+    + `Tipo: ${encodeURIComponent(v('tTipo'))}%0A`
+    + `Superficie aprox.: ${encodeURIComponent(v('tM2'))} m2%0A`
+    + `Estado: ${encodeURIComponent(v('tEstado'))}%0A`
+    + `Mi teléfono: ${encodeURIComponent(v('tTel'))}`;
+  window.open(waUrlI(msg), '_blank');
+});
+/* ╚═══════════════ fin componente 4 — JS ═══════════════╝ */
+
+document.getElementById('pieMatricula').textContent =
+  `${CONFIG_PLANO.nombreInmobiliaria.toUpperCase()} · ${CONFIG_PLANO.matricula} · MEDIDAS Y PRECIOS ORIENTATIVOS, SUJETOS A TÍTULO`;
+</script>
+</body>
+</html>

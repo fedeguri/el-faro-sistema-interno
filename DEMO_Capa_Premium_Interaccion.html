@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<!--
+  EL FARO — DEMO: CAPA PREMIUM DE INTERACCIÓN
+  4 patrones opt-in para el paquete Full, pensados para sumar sobre las verticales
+  que admiten más expresividad (Turismo, Estética, Inmobiliarias) — no para Salud,
+  donde la calma es la marca. Ninguno requiere librerías externas.
+-->
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>El Faro — Capa Premium</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600&family=Work+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Work Sans',sans-serif;background:#0F1210;color:#F4F1EA;line-height:1.6;overflow-x:hidden;}
+.wrap{max-width:900px;margin:0 auto;padding:4rem 1.5rem;}
+h1{font-family:'Fraunces',serif;font-size:clamp(1.8rem,4vw,2.6rem);font-weight:600;margin-bottom:.6rem;}
+.sub{color:#9A9385;margin-bottom:3rem;font-size:.95rem;}
+.bloque{margin-bottom:5rem;}
+.bloque h2{font-family:'Fraunces',serif;font-size:1.15rem;font-weight:600;margin-bottom:.4rem;color:#E8A33D;}
+.bloque p{color:#B8B2A3;font-size:.88rem;max-width:50ch;margin-bottom:1.6rem;}
+
+/* ── 1. Texto con revelado escalonado ── */
+.reveal-titulo{font-family:'Fraunces',serif;font-size:clamp(1.6rem,3.5vw,2.3rem);font-weight:600;overflow:hidden;}
+.reveal-titulo span{display:inline-block;transform:translateY(110%);opacity:0;animation:subir .7s cubic-bezier(.2,.8,.2,1) forwards;}
+@keyframes subir{to{transform:translateY(0);opacity:1;}}
+
+/* ── 2. Botón magnético ── */
+.btn-magnetico{position:relative;display:inline-flex;align-items:center;gap:.6rem;
+  padding:1rem 2.1rem;border-radius:40px;background:#E8A33D;color:#1A1A16;font-weight:500;
+  border:none;cursor:pointer;font-size:.95rem;transition:transform .15s ease;}
+
+/* ── 3. Tarjeta con tilt 3D al mover el mouse ── */
+.tilt-card{position:relative;width:260px;height:170px;border-radius:14px;
+  background:linear-gradient(145deg,#1C2119,#141712);border:1px solid #2A2E26;
+  padding:1.4rem;transform-style:preserve-3d;transition:transform .12s ease-out, box-shadow .2s;
+  box-shadow:0 12px 30px -12px rgba(0,0,0,.6);cursor:pointer;}
+.tilt-card:hover{box-shadow:0 20px 40px -14px rgba(232,163,61,.25);}
+.tilt-card .eyebrow{font-family:'Work Sans';font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;color:#E8A33D;margin-bottom:.5rem;}
+.tilt-card h3{font-family:'Fraunces',serif;font-size:1.15rem;font-weight:600;}
+.tilt-card p{font-size:.8rem;color:#9A9385;margin-top:.4rem;}
+.tilt-glare{position:absolute;inset:0;border-radius:14px;pointer-events:none;
+  background:radial-gradient(circle at var(--gx,50%) var(--gy,50%), rgba(255,255,255,.08), transparent 60%);}
+
+/* ── 4. Cursor-glow ambiental (sigue al mouse dentro del bloque) ── */
+.zona-glow{position:relative;border:1px solid #22261F;border-radius:14px;padding:2.2rem;overflow:hidden;}
+.glow-orbe{position:absolute;width:260px;height:260px;border-radius:50%;
+  background:radial-gradient(circle, rgba(232,163,61,.18), transparent 70%);
+  pointer-events:none;left:0;top:0;transform:translate(-50%,-50%);transition:opacity .3s;opacity:0;}
+.zona-glow:hover .glow-orbe{opacity:1;}
+.zona-glow-contenido{position:relative;z-index:1;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Capa premium de interacción</h1>
+  <p class="sub">Cuatro patrones opt-in para el paquete Full — se activan por vertical, no por defecto.</p>
+
+  <div class="bloque">
+    <h2>1 · Texto con revelado escalonado</h2>
+    <p>Cada palabra sube por separado al cargar la sección. Reemplaza el fade-in genérico por algo con más carácter, sin exagerar.</p>
+    <h3 class="reveal-titulo" id="revealTitulo"></h3>
+  </div>
+
+  <div class="bloque">
+    <h2>2 · Botón magnético</h2>
+    <p>El botón se acerca sutilmente al cursor cuando pasás cerca — un detalle de interacción que solo se nota al usarlo, no al mirarlo.</p>
+    <button class="btn-magnetico" id="btnMagnetico">Agendá tu visita →</button>
+  </div>
+
+  <div class="bloque">
+    <h2>3 · Tarjeta con profundidad (tilt 3D)</h2>
+    <p>La tarjeta reacciona a la posición del mouse con una inclinación sutil y un reflejo que sigue el cursor — profundidad real, sin librerías.</p>
+    <div class="tilt-card" id="tiltCard">
+      <div class="eyebrow">Cabaña Río Claro</div>
+      <h3>El Trapiche</h3>
+      <p>Desde USD 65 / noche</p>
+      <div class="tilt-glare" id="tiltGlare"></div>
+    </div>
+  </div>
+
+  <div class="bloque">
+    <h2>4 · Resplandor ambiental</h2>
+    <p>Un halo cálido sigue al cursor dentro de la sección — atmósfera sin distraer del contenido.</p>
+    <div class="zona-glow" id="zonaGlow">
+      <div class="glow-orbe" id="glowOrbe"></div>
+      <div class="zona-glow-contenido">
+        <h3 style="font-family:'Fraunces',serif;font-weight:600;margin-bottom:.4rem;">Reservá tu fin de semana</h3>
+        <p style="color:#9A9385;font-size:.85rem;">Moví el mouse por este bloque para ver el efecto.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// 1. Revelado escalonado
+const REDUCE = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const titulo = document.getElementById('revealTitulo');
+const texto = 'Tu próxima escapada empieza acá';
+titulo.innerHTML = texto.split(' ').map((palabra,i)=>
+  `<span style="animation-delay:${REDUCE ? 0 : i*0.09}s${REDUCE ? ';animation:none;transform:none;opacity:1' : ''}">${palabra}&nbsp;</span>`
+).join('');
+
+// 2. Botón magnético
+if(!REDUCE){
+  const btn = document.getElementById('btnMagnetico');
+  btn.addEventListener('mousemove', (e)=>{
+    const r = btn.getBoundingClientRect();
+    const x = (e.clientX - r.left - r.width/2) * 0.25;
+    const y = (e.clientY - r.top - r.height/2) * 0.25;
+    btn.style.transform = `translate(${x}px, ${y}px)`;
+  });
+  btn.addEventListener('mouseleave', ()=>{ btn.style.transform = 'translate(0,0)'; });
+}
+
+// 3. Tilt 3D
+if(!REDUCE){
+  const card = document.getElementById('tiltCard');
+  const glare = document.getElementById('tiltGlare');
+  card.addEventListener('mousemove', (e)=>{
+    const r = card.getBoundingClientRect();
+    const px = (e.clientX - r.left) / r.width;
+    const py = (e.clientY - r.top) / r.height;
+    const rotX = (0.5 - py) * 10;
+    const rotY = (px - 0.5) * 10;
+    card.style.transform = `perspective(600px) rotateX(${rotX}deg) rotateY(${rotY}deg) scale(1.02)`;
+    glare.style.setProperty('--gx', (px*100)+'%');
+    glare.style.setProperty('--gy', (py*100)+'%');
+  });
+  card.addEventListener('mouseleave', ()=>{ card.style.transform = 'perspective(600px) rotateX(0) rotateY(0) scale(1)'; });
+}
+
+// 4. Resplandor ambiental
+if(!REDUCE){
+  const zona = document.getElementById('zonaGlow');
+  const orbe = document.getElementById('glowOrbe');
+  zona.addEventListener('mousemove', (e)=>{
+    const r = zona.getBoundingClientRect();
+    orbe.style.left = (e.clientX - r.left) + 'px';
+    orbe.style.top = (e.clientY - r.top) + 'px';
+  });
+}
+</script>
+</body>
+</html>

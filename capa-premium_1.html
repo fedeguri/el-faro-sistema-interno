@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<!--
+  ═══════════════════════════════════════════════════════════════════════════════
+  EL FARO — CAPA PREMIUM DE INTERACCIÓN · Módulo reutilizable v1
+  ═══════════════════════════════════════════════════════════════════════════════
+  Módulo INDEPENDIENTE de las verticales: se importa opcional en sitios del
+  paquete Full. Cada patrón se activa con su propio atributo data-cp — se pueden
+  copiar sueltos (cada uno tiene su CSS y su JS delimitados) o traer el módulo entero.
+
+  PATRONES (categorías E, B y A del análisis, en ese orden de prioridad):
+    E1  data-cp-form            Validación que enseña (no regaña)
+    E2  data-cp="confirmar"     Confirmación con peso, <300ms
+    B1  data-cp="magnetico"     Botón magnético
+    B2  data-cp="tilt"          Tilt 3D con reflejo
+    B3  data-cp-glow            Resplandor de cursor (por sección)
+    B4  data-cp="linterna"      Cursor linterna (antes/después premium)
+    A1  data-cp-sticky          Sticky reveal (fichas largas)
+    C1  data-cp="escalonado"    Texto con revelado escalonado
+
+  REGLAS DE PRODUCCIÓN (no negociables):
+  - Cero dependencias. Cero trabajo en el critical path: el JS va con `defer` (o
+    al final del body) y cada patrón solo agrega listeners; el trabajo real ocurre
+    recién en la interacción o al entrar al viewport (IntersectionObserver).
+  - prefers-reduced-motion: TODOS los patrones de movimiento se apagan (los de
+    feedback E1/E2 quedan, sin animación, porque son información).
+  - hover:none (touch): magnético/tilt/glow/linterna degradan a su fallback táctil
+    o se apagan — ningún contenido depende del cursor para ser accesible.
+  - El módulo NO trae paleta: lee las variables del sitio anfitrión con fallback
+    (--cp-acento hereda --acento/--vino/--clinico/etc. según lo que el sitio defina).
+
+  CÓMO IMPORTAR EN UN SITIO REAL:
+    1. Copiar el bloque <style id="cp-css"> (o solo los patrones que se usen).
+    2. Copiar el <script id="cp-js"> al final del body.
+    3. Marcar los elementos con los data-cp correspondientes. Nada más.
+-->
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>El Faro — Capa Premium de Interacción</title>
+<style>
+/* Tokens de la DEMO (en un sitio real, el módulo hereda los del sitio) */
+:root{
+  --cp-acento:#2C5F7C; --fondo:#F7F5F1; --tinta:#26262B; --gris:#75716B; --linea:#E5E1D8;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:system-ui,sans-serif;background:var(--fondo);color:var(--tinta);line-height:1.6;}
+.demo{max-width:960px;margin:0 auto;padding:3.5rem 1.4rem;border-bottom:1px solid var(--linea);}
+.demo h2{font-size:1.4rem;margin-bottom:.4rem;}
+.demo .tag{font-family:monospace;font-size:.7rem;color:var(--cp-acento);display:block;margin-bottom:1.4rem;}
+.btn{display:inline-flex;align-items:center;gap:.5rem;padding:.9rem 1.7rem;border-radius:7px;
+  border:none;cursor:pointer;background:var(--cp-acento);color:#fff;font-weight:600;font-size:.92rem;}
+.card{background:#fff;border:1px solid var(--linea);border-radius:10px;padding:1.6rem;max-width:330px;}
+input,textarea{width:100%;padding:.7rem .85rem;border:1.5px solid var(--linea);border-radius:6px;font:inherit;}
+label{display:block;font-family:monospace;font-size:.66rem;text-transform:uppercase;letter-spacing:.1em;color:var(--gris);margin:.9rem 0 .3rem;}
+</style>
+
+<!-- ════════════════════════════════════════════════════════════════════════════
+     CSS DEL MÓDULO — copiar entero o por patrón (bloques ╔═╗)
+     ════════════════════════════════════════════════════════════════════════════ -->
+<style id="cp-css">
+/* ╔═ CP BASE (obligatorio si se usa cualquier patrón) ═╗ */
+[data-cp],[data-cp-glow],[data-cp-sticky]{--cp-a:var(--cp-acento, var(--acento, #2C5F7C));}
+@media(prefers-reduced-motion: reduce){
+  .cp-anim, .cp-anim *{transition:none !important;animation:none !important;transform:none !important;}
+}
+/* ╚═ fin CP BASE ═╝ */
+
+/* ╔═ E1 · VALIDACIÓN QUE ENSEÑA (data-cp-form) ═╗
+   Filosofía: mostrar qué ya está bien y qué falta, nunca gritar en rojo.
+   El check se dibuja cuando el campo queda válido; el resumen dice "falta X"
+   en tono de guía. El rojo no existe en este patrón. */
+[data-cp-form] .cp-campo{position:relative;}
+[data-cp-form] .cp-check{position:absolute;right:.7rem;bottom:.62rem;width:20px;height:20px;
+  pointer-events:none;opacity:0;transform:scale(.6);transition:opacity .18s, transform .22s cubic-bezier(.34,1.56,.64,1);}
+[data-cp-form] .cp-check circle{fill:none;stroke:var(--cp-a);stroke-width:1.6;}
+[data-cp-form] .cp-check path{fill:none;stroke:var(--cp-a);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;
+  stroke-dasharray:14;stroke-dashoffset:14;transition:stroke-dashoffset .25s ease .05s;}
+[data-cp-form] .cp-campo.cp-ok .cp-check{opacity:1;transform:scale(1);}
+[data-cp-form] .cp-campo.cp-ok .cp-check path{stroke-dashoffset:0;}
+[data-cp-form] .cp-campo.cp-ok input, [data-cp-form] .cp-campo.cp-ok textarea{border-color:var(--cp-a);}
+.cp-guia{font-size:.8rem;color:var(--gris, #75716B);margin-top:.7rem;min-height:1.2em;transition:opacity .2s;}
+.cp-guia b{color:var(--cp-a);font-weight:600;}
+/* ╚═ fin E1 ═╝ */
+
+/* ╔═ E2 · CONFIRMACIÓN CON PESO <300ms (data-cp="confirmar") ═╗
+   Reemplaza cualquier alert(): el botón se contrae 90ms, dibuja el check 180ms,
+   y recién ahí dispara la acción real. Total < 300ms (regla de oro del research). */
+[data-cp="confirmar"]{position:relative;transition:transform .09s ease;}
+[data-cp="confirmar"].cp-confirmando{transform:scale(.96);}
+[data-cp="confirmar"] .cp-sello{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  background:inherit;border-radius:inherit;opacity:0;pointer-events:none;transition:opacity .1s;}
+[data-cp="confirmar"].cp-confirmado .cp-sello{opacity:1;}
+[data-cp="confirmar"] .cp-sello path{fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;
+  stroke-linejoin:round;stroke-dasharray:20;stroke-dashoffset:20;}
+[data-cp="confirmar"].cp-confirmado .cp-sello path{transition:stroke-dashoffset .18s ease;stroke-dashoffset:0;}
+/* ╚═ fin E2 ═╝ */
+
+/* ╔═ B1 · BOTÓN MAGNÉTICO (data-cp="magnetico") ═╗ */
+[data-cp="magnetico"]{transition:transform .18s cubic-bezier(.22,1,.36,1);will-change:transform;}
+/* ╚═ fin B1 ═╝ */
+
+/* ╔═ B2 · TILT 3D CON REFLEJO (data-cp="tilt") ═╗ */
+[data-cp="tilt"]{transform-style:preserve-3d;transition:transform .2s ease;position:relative;overflow:hidden;}
+[data-cp="tilt"] .cp-reflejo{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .25s;
+  background:radial-gradient(320px circle at var(--cp-rx,50%) var(--cp-ry,50%), rgba(255,255,255,.28), transparent 65%);}
+[data-cp="tilt"]:hover .cp-reflejo{opacity:1;}
+/* ╚═ fin B2 ═╝ */
+
+/* ╔═ B3 · RESPLANDOR DE CURSOR (data-cp-glow, por sección) ═╗ */
+[data-cp-glow]{position:relative;}
+[data-cp-glow] .cp-glow{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .4s;
+  background:radial-gradient(420px circle at var(--cp-gx,50%) var(--cp-gy,50%),
+    color-mix(in srgb, var(--cp-a) 12%, transparent), transparent 70%);}
+[data-cp-glow]:hover .cp-glow{opacity:1;}
+/* ╚═ fin B3 ═╝ */
+
+/* ╔═ B4 · CURSOR LINTERNA (data-cp="linterna") ═╗
+   Variante premium del antes/después: la foto "después" se revela en un círculo
+   que sigue al cursor. En touch, el dedo arrastra la linterna (mismo handler).
+   Reduced-motion o sin JS: la segunda imagen queda revelada al 50% fija. */
+[data-cp="linterna"]{position:relative;overflow:hidden;cursor:none;}
+[data-cp="linterna"] img{display:block;width:100%;height:100%;object-fit:cover;}
+[data-cp="linterna"] .cp-capa2{position:absolute;inset:0;
+  clip-path:circle(var(--cp-r,0px) at var(--cp-lx,50%) var(--cp-ly,50%));
+  transition:clip-path .08s linear;}
+[data-cp="linterna"] .cp-aro{position:absolute;width:calc(var(--cp-r,0px)*2);height:calc(var(--cp-r,0px)*2);
+  left:var(--cp-lx,50%);top:var(--cp-ly,50%);transform:translate(-50%,-50%);border-radius:50%;
+  border:1.5px solid rgba(255,255,255,.9);box-shadow:0 0 18px rgba(255,255,255,.35);pointer-events:none;
+  opacity:0;transition:opacity .2s;}
+[data-cp="linterna"]:hover .cp-aro, [data-cp="linterna"].cp-touch .cp-aro{opacity:1;}
+[data-cp="linterna"] .cp-etq{position:absolute;bottom:.7rem;font-family:monospace;font-size:.64rem;
+  letter-spacing:.12em;text-transform:uppercase;background:rgba(0,0,0,.65);color:#fff;
+  padding:.3rem .55rem;border-radius:3px;pointer-events:none;}
+/* ╚═ fin B4 ═╝ */
+
+/* ╔═ A1 · STICKY REVEAL (data-cp-sticky) ═╗
+   La pieza clave (imagen/dato) queda fija mientras el contenido pasa al lado.
+   Estructura: <div data-cp-sticky> <div class="cp-fija">…</div> <div class="cp-fluye">…</div> </div>
+   Es CSS puro (position:sticky); el JS solo marca qué bloque del flujo está activo. */
+[data-cp-sticky]{display:grid;grid-template-columns:1fr 1.1fr;gap:2.5rem;align-items:start;}
+@media(max-width:760px){[data-cp-sticky]{grid-template-columns:1fr;}
+  [data-cp-sticky] .cp-fija{position:static;}}
+[data-cp-sticky] .cp-fija{position:sticky;top:5.5rem;}
+[data-cp-sticky] .cp-fluye > *{opacity:.35;transition:opacity .35s;}
+[data-cp-sticky] .cp-fluye > .cp-activo{opacity:1;}
+/* ╚═ fin A1 ═╝ */
+
+/* ╔═ C1 · TEXTO CON REVELADO ESCALONADO (data-cp="escalonado") ═╗ */
+[data-cp="escalonado"] .cp-palabra{display:inline-block;opacity:0;transform:translateY(.45em);
+  transition:opacity .45s ease, transform .5s cubic-bezier(.22,1,.36,1);}
+[data-cp="escalonado"].cp-visto .cp-palabra{opacity:1;transform:translateY(0);}
+/* ╚═ fin C1 ═╝ */
+
+/* ╔═ H1 · HERO ROTATIVO CON ZOOM SUTIL (data-cp="hero-rotativo") ═╗
+   5 imágenes en crossfade con Ken Burns (zoom 1 → 1.06) antes de cambiar a la
+   siguiente. Estructura esperada:
+   <div data-cp="hero-rotativo" data-cp-duracion="6000">
+     <img class="cp-hero-img" src="…">  (hasta 5, la 1ra queda visible sin JS)
+     <div class="cp-hero-dots"></div>   (opcional — se puebla solo)
+   </div>
+   Fuente de las imágenes: fotos reales del cliente si existen, banco de
+   imágenes gratuito como fallback (regla de Paso 1b de el-faro-perfiles-cliente).
+   Sin JS o con reduced-motion: la primera imagen queda fija, sin zoom — el hero
+   sigue funcionando, solo no rota. */
+[data-cp="hero-rotativo"]{position:relative;overflow:hidden;}
+[data-cp="hero-rotativo"] .cp-hero-img{position:absolute;inset:0;width:100%;height:100%;
+  object-fit:cover;opacity:0;transform:scale(1);
+  transition:opacity 1.1s ease;}
+[data-cp="hero-rotativo"] .cp-hero-img:first-child{opacity:1;position:relative;}
+[data-cp="hero-rotativo"] .cp-hero-img.cp-activa{opacity:1;position:absolute;}
+[data-cp="hero-rotativo"] .cp-hero-img.cp-zoom{animation:cpKenBurns var(--cp-hero-dur,6000ms) linear forwards;}
+@keyframes cpKenBurns{from{transform:scale(1);}to{transform:scale(1.06);}}
+[data-cp="hero-rotativo"] .cp-hero-dots{position:absolute;bottom:1.2rem;left:50%;transform:translateX(-50%);
+  display:flex;gap:.4rem;z-index:2;}
+[data-cp="hero-rotativo"] .cp-hero-dots span{width:6px;height:6px;border-radius:50%;
+  background:rgba(255,255,255,.45);transition:background .3s,transform .3s;}
+[data-cp="hero-rotativo"] .cp-hero-dots span.cp-activo{background:#fff;transform:scale(1.3);}
+@media(prefers-reduced-motion: reduce){
+  [data-cp="hero-rotativo"] .cp-hero-img{animation:none !important;transform:none !important;}
+}
+/* ╚═ fin H1 ═╝ */
+</style>
+</head>
+<body>
+
+<!-- ═══ DEMOS (una por patrón — en un sitio real esto no se copia, solo el módulo) ═══ -->
+
+<section class="demo" data-cp-glow>
+  <h2>B3 · Resplandor de cursor</h2><span class="tag">data-cp-glow (en la sección) — hereda el acento del sitio</span>
+  <p>Movete por esta sección: el halo sigue al cursor. En touch y reduced-motion, no existe (es puramente ambiental, nunca informativo).</p>
+</section>
+
+<section class="demo">
+  <h2>C1 · Texto escalonado &nbsp;·&nbsp; B1 · Botón magnético &nbsp;·&nbsp; E2 · Confirmación</h2>
+  <span class="tag">data-cp="escalonado" · data-cp="magnetico" · data-cp="confirmar"</span>
+  <h1 data-cp="escalonado" style="font-size:2rem;margin-bottom:1.4rem;">Tu día en el valle empieza acá</h1>
+  <button class="btn" data-cp="magnetico" data-cp2="confirmar" data-variante="A" id="demoBoton">Enviar solicitud de reserva</button>
+  <p style="font-size:.8rem;color:var(--gris);margin-top:.8rem;">El botón se acerca al cursor (magnético) y, al hacer clic, confirma con peso en &lt;300ms antes de disparar la acción real.</p>
+</section>
+
+<section class="demo">
+  <h2>B2 · Tilt 3D con reflejo</h2><span class="tag">data-cp="tilt"</span>
+  <div class="card" data-cp="tilt">
+    <h3 style="margin-bottom:.4rem;">Cabaña del Río</h3>
+    <p style="font-family:monospace;font-size:.72rem;color:var(--cp-acento);">85 M² · 3 AMB · VISTA SIERRAS</p>
+    <p style="font-size:.86rem;color:var(--gris);margin-top:.6rem;">La tarjeta se inclina siguiendo el cursor, con un reflejo de luz que la recorre. En touch queda plana.</p>
+  </div>
+</section>
+
+<section class="demo">
+  <h2>B4 · Cursor linterna (antes/después premium)</h2><span class="tag">data-cp="linterna"</span>
+  <div data-cp="linterna" style="max-width:520px;aspect-ratio:4/3;border-radius:10px;">
+    <img alt="Antes" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 600'%3E%3Crect width='800' height='600' fill='%23C9BBA8'/%3E%3Ctext x='400' y='300' font-family='monospace' font-size='30' fill='%237A6F63' text-anchor='middle'%3EANTES%3C/text%3E%3C/svg%3E">
+    <div class="cp-capa2"><img alt="Después" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 600'%3E%3Crect width='800' height='600' fill='%23EAD9C4'/%3E%3Ctext x='400' y='300' font-family='monospace' font-size='30' fill='%236E2F3C' text-anchor='middle'%3EDESPUÉS%3C/text%3E%3C/svg%3E"></div>
+    <div class="cp-aro"></div>
+    <span class="cp-etq" style="left:.7rem;">Antes</span>
+    <span class="cp-etq" style="right:.7rem;">Después</span>
+  </div>
+  <p style="font-size:.8rem;color:var(--gris);margin-top:.8rem;">El cursor es la linterna que revela el "después". En touch: arrastrás el dedo. Con reduced-motion: revelado fijo al 50%. La etiqueta de consentimiento de Estética sigue siendo obligatoria al usarlo ahí.</p>
+</section>
+
+<section class="demo">
+  <h2>A1 · Sticky reveal</h2><span class="tag">data-cp-sticky</span>
+  <div data-cp-sticky>
+    <div class="cp-fija card">
+      <h3 id="stickyTitulo">Etapa 1 · Evaluación</h3>
+      <p style="font-family:monospace;font-size:.72rem;color:var(--cp-acento);" id="stickyDato">SIN CARGO · 20 MIN</p>
+    </div>
+    <div class="cp-fluye">
+      <div data-cp-dato="Etapa 1 · Evaluación|SIN CARGO · 20 MIN" style="padding:2.5rem 0;"><h3>Evaluación</h3><p>Revisión completa y plan por escrito. La tarjeta de la izquierda queda fija y va cambiando su dato según el bloque que estás leyendo.</p></div>
+      <div data-cp-dato="Etapa 2 · Tratamiento|2-3 SESIONES" style="padding:2.5rem 0;"><h3>Tratamiento</h3><p>Cada bloque que entra al centro del viewport se marca activo (opacidad completa) y actualiza la pieza fija.</p></div>
+      <div data-cp-dato="Etapa 3 · Control|A LOS 30 DÍAS" style="padding:2.5rem 0;"><h3>Control</h3><p>Aplicable directo a fichas largas de Salud y a la ficha de propiedad de Inmobiliarias (la foto fija, los datos fluyen).</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="demo">
+  <h2>E1 · Validación que enseña</h2><span class="tag">data-cp-form · data-cp-valida="requerido|tel|email"</span>
+  <form data-cp-form style="max-width:420px;" id="demoForm">
+    <label>Tu nombre</label>
+    <div class="cp-campo"><input type="text" data-cp-valida="requerido" placeholder="Nombre y apellido"></div>
+    <label>Tu teléfono</label>
+    <div class="cp-campo"><input type="tel" data-cp-valida="tel" placeholder="Ej: 266 4 123456"></div>
+    <label>Tu email</label>
+    <div class="cp-campo"><input type="email" data-cp-valida="email" placeholder="nombre@mail.com"></div>
+    <p class="cp-guia" aria-live="polite"></p>
+  </form>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════════════════════
+     JS DEL MÓDULO — copiar al final del body (o con defer). Cero trabajo hasta
+     la interacción / viewport. Cada patrón en su bloque ╔═╗, copiable suelto
+     (todos requieren el bloque CP BASE).
+     ════════════════════════════════════════════════════════════════════════════ -->
+<script id="cp-js">
+/* ╔═ CP BASE ═╗ */
+const CP = (() => {
+  const REDUCE = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const TOUCH  = !!(window.matchMedia && window.matchMedia('(hover: none)').matches);
+  const $$ = (s, c=document) => [...c.querySelectorAll(s)];
+
+  /* E5 · Gancho de medición: registra variantes A/B declaradas y, si hay GA4,
+     manda UN evento por patrón con la variante activa (para comparar entre
+     clientes en unos meses; no implementa el test, solo deja la traza). */
+  const VARIANTES = {};
+  function registrarVariante(el, patron){
+    const v = el.getAttribute('data-variante');
+    if(!v) return;
+    VARIANTES[patron] = v;
+    if(typeof window.gtag === 'function'){
+      window.gtag('event', 'cp_variante', { patron, variante: v });
+    }
+  }
+/* ╚═ fin CP BASE (el return va al final del archivo) ═╝ */
+
+/* ╔═ B1 · BOTÓN MAGNÉTICO ═╗
+   El botón se desplaza hasta 6px hacia el cursor dentro de un radio de 90px.
+   Sutil a propósito: si se nota "el efecto", está mal calibrado. */
+  function initMagnetico(){
+    if(REDUCE || TOUCH) return;
+    $$('[data-cp="magnetico"], [data-cp2="magnetico"]').forEach(el=>{
+      el.classList.add('cp-anim');
+      registrarVariante(el, 'magnetico');
+      const RADIO = 90, FUERZA = 6;
+      let raf = null;
+      function mover(e){
+        const r = el.getBoundingClientRect();
+        const cx = r.left + r.width/2, cy = r.top + r.height/2;
+        const dx = e.clientX - cx, dy = e.clientY - cy;
+        const d = Math.hypot(dx, dy);
+        if(raf) cancelAnimationFrame(raf);
+        raf = requestAnimationFrame(()=>{
+          if(d < RADIO){
+            const f = 1 - d/RADIO;
+            el.style.transform = `translate(${dx/d*FUERZA*f*d/RADIO*RADIO/28}px, ${dy/d*FUERZA*f*d/RADIO*RADIO/28}px)`;
+          } else el.style.transform = '';
+        });
+      }
+      el.parentElement.addEventListener('pointermove', mover, {passive:true});
+      el.parentElement.addEventListener('pointerleave', ()=>{ el.style.transform=''; }, {passive:true});
+    });
+  }
+/* ╚═ fin B1 ═╝ */
+
+/* ╔═ B2 · TILT 3D CON REFLEJO ═╗ */
+  function initTilt(){
+    $$('[data-cp="tilt"]').forEach(el=>{
+      const reflejo = document.createElement('div');
+      reflejo.className = 'cp-reflejo';
+      el.appendChild(reflejo);
+      registrarVariante(el, 'tilt');
+      if(REDUCE || TOUCH) return;              // el reflejo estático no molesta; el tilt sí se apaga
+      el.classList.add('cp-anim');
+      const MAX = 7;                            // grados máximos — más que esto marea
+      let raf = null;
+      el.addEventListener('pointermove', (e)=>{
+        const r = el.getBoundingClientRect();
+        const px = (e.clientX - r.left)/r.width, py = (e.clientY - r.top)/r.height;
+        if(raf) cancelAnimationFrame(raf);
+        raf = requestAnimationFrame(()=>{
+          el.style.transform = `perspective(700px) rotateY(${(px-.5)*2*MAX}deg) rotateX(${(.5-py)*2*MAX}deg)`;
+          el.style.setProperty('--cp-rx', (px*100)+'%');
+          el.style.setProperty('--cp-ry', (py*100)+'%');
+        });
+      }, {passive:true});
+      el.addEventListener('pointerleave', ()=>{ el.style.transform=''; }, {passive:true});
+    });
+  }
+/* ╚═ fin B2 ═╝ */
+
+/* ╔═ B3 · RESPLANDOR DE CURSOR ═╗ */
+  function initGlow(){
+    if(REDUCE || TOUCH) return;
+    $$('[data-cp-glow]').forEach(sec=>{
+      const g = document.createElement('div');
+      g.className = 'cp-glow';
+      sec.appendChild(g);
+      let raf = null;
+      sec.addEventListener('pointermove', (e)=>{
+        const r = sec.getBoundingClientRect();
+        if(raf) cancelAnimationFrame(raf);
+        raf = requestAnimationFrame(()=>{
+          sec.style.setProperty('--cp-gx', (e.clientX - r.left)+'px');
+          sec.style.setProperty('--cp-gy', (e.clientY - r.top)+'px');
+        });
+      }, {passive:true});
+    });
+  }
+/* ╚═ fin B3 ═╝ */
+
+/* ╔═ B4 · CURSOR LINTERNA ═╗ */
+  function initLinterna(){
+    $$('[data-cp="linterna"]').forEach(el=>{
+      registrarVariante(el, 'linterna');
+      if(REDUCE){   // fallback accesible: revelado fijo a la mitad, sin cursor custom
+        el.style.cursor = 'default';
+        el.style.setProperty('--cp-r', '9999px');
+        el.querySelector('.cp-capa2').style.clipPath = 'inset(0 0 0 50%)';
+        return;
+      }
+      const R = 90;
+      function apuntar(x, y){
+        const r = el.getBoundingClientRect();
+        el.style.setProperty('--cp-lx', (x - r.left)+'px');
+        el.style.setProperty('--cp-ly', (y - r.top)+'px');
+        el.style.setProperty('--cp-r', R+'px');
+      }
+      let raf = null;
+      const mover = (e)=>{
+        const x = e.clientX ?? (e.touches && e.touches[0].clientX);
+        const y = e.clientY ?? (e.touches && e.touches[0].clientY);
+        if(x == null) return;
+        if(raf) cancelAnimationFrame(raf);
+        raf = requestAnimationFrame(()=> apuntar(x, y));
+      };
+      el.addEventListener('pointermove', mover, {passive:true});
+      el.addEventListener('pointerleave', ()=> el.style.setProperty('--cp-r','0px'), {passive:true});
+      // Touch: el dedo ES la linterna (mismo handler; pointermove cubre touch en
+      // navegadores modernos, touchmove queda de red de seguridad)
+      el.addEventListener('touchmove', (e)=>{ el.classList.add('cp-touch'); mover(e); }, {passive:true});
+    });
+  }
+/* ╚═ fin B4 ═╝ */
+
+/* ╔═ A1 · STICKY REVEAL ═╗
+   CSS hace el sticky; el JS observa qué bloque del flujo cruza el centro y
+   (a) lo marca activo, (b) actualiza la pieza fija si el bloque trae data-cp-dato
+   con formato "Título|Dato". */
+  function initSticky(){
+    $$('[data-cp-sticky]').forEach(wrap=>{
+      const bloques = $$('.cp-fluye > *', wrap);
+      if(!bloques.length || !('IntersectionObserver' in window)){
+        bloques.forEach(b=>b.classList.add('cp-activo'));   // sin IO: todo visible
+        return;
+      }
+      const titulo = wrap.querySelector('#stickyTitulo, [data-cp-titulo]');
+      const dato   = wrap.querySelector('#stickyDato, [data-cp-dato-out]');
+      const io = new IntersectionObserver((es)=>{
+        es.forEach(e=>{
+          if(!e.isIntersecting) return;
+          bloques.forEach(b=>b.classList.toggle('cp-activo', b===e.target));
+          const info = (e.target.getAttribute('data-cp-dato')||'').split('|');
+          if(titulo && info[0]) titulo.textContent = info[0];
+          if(dato && info[1]) dato.textContent = info[1];
+        });
+      }, {rootMargin:'-45% 0px -45% 0px'});
+      bloques.forEach(b=> io.observe(b));
+    });
+  }
+/* ╚═ fin A1 ═╝ */
+
+/* ╔═ C1 · TEXTO ESCALONADO ═╗ */
+  function initEscalonado(){
+    $$('[data-cp="escalonado"]').forEach(el=>{
+      registrarVariante(el, 'escalonado');
+      if(REDUCE || !('IntersectionObserver' in window)){ el.classList.add('cp-visto'); return; }
+      el.innerHTML = el.textContent.trim().split(/\s+/)
+        .map((p,i)=>`<span class="cp-palabra" style="transition-delay:${i*55}ms">${p}</span>`).join(' ');
+      new IntersectionObserver((es,obs)=>{
+        es.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('cp-visto'); obs.unobserve(e.target); } });
+      },{threshold:.5}).observe(el);
+    });
+  }
+/* ╚═ fin C1 ═╝ */
+
+/* ╔═ H1 · HERO ROTATIVO CON ZOOM SUTIL ═╗
+   Crossfade + Ken Burns entre hasta 5 <img class="cp-hero-img">. Con reduced-
+   motion o una sola imagen: la primera queda fija, sin animar — el hero sigue
+   funcionando. Dots opcionales, se pueblan solos si existe .cp-hero-dots. */
+  function initHeroRotativo(){
+    $$('[data-cp="hero-rotativo"]').forEach(wrap=>{
+      registrarVariante(wrap, 'hero-rotativo');
+      const imgs = $$('.cp-hero-img', wrap);
+      if(imgs.length <= 1) return;                       // nada que rotar
+      const dur = parseInt(wrap.dataset.cpDuracion || '6000', 10);
+      wrap.style.setProperty('--cp-hero-dur', dur+'ms');
+      let dotsWrap = wrap.querySelector('.cp-hero-dots');
+      if(dotsWrap){
+        dotsWrap.innerHTML = imgs.map((_,i)=>`<span class="${i===0?'cp-activo':''}"></span>`).join('');
+      }
+      if(REDUCE){ imgs[0].classList.add('cp-zoom'); return; }  // fijo, sin ciclo
+      let actual = 0;
+      imgs[0].classList.add('cp-zoom');
+      setInterval(()=>{
+        const anterior = actual;
+        actual = (actual + 1) % imgs.length;
+        imgs[anterior].classList.remove('cp-activa','cp-zoom');
+        imgs[actual].classList.add('cp-activa');
+        requestAnimationFrame(()=> imgs[actual].classList.add('cp-zoom'));
+        if(dotsWrap){
+          $$('span', dotsWrap).forEach((d,i)=> d.classList.toggle('cp-activo', i===actual));
+        }
+      }, dur);
+    });
+  }
+/* ╚═ fin H1 ═╝ */
+
+/* ╔═ E1 · VALIDACIÓN QUE ENSEÑA ═╗
+   Reglas: requerido (no vacío) · tel (7+ dígitos) · email (forma básica).
+   Al validar un campo: check dibujado. La guía dice qué FALTA, en positivo. */
+  const CP_REGLAS = {
+    requerido: v => v.trim().length >= 2,
+    tel:       v => (v.replace(/\D/g,'').length >= 7),
+    email:     v => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim()),
+  };
+  const CP_NOMBRES = { requerido:'tu nombre', tel:'un teléfono para responderte', email:'tu email' };
+  function initFormEnsena(){
+    $$('[data-cp-form]').forEach(form=>{
+      const campos = $$('[data-cp-valida]', form);
+      const guia = form.querySelector('.cp-guia');
+      campos.forEach(inp=>{
+        const campo = inp.closest('.cp-campo') || inp.parentElement;
+        const chk = document.createElementNS('http://www.w3.org/2000/svg','svg');
+        chk.setAttribute('viewBox','0 0 20 20');
+        chk.classList.add('cp-check');
+        chk.innerHTML = '<circle cx="10" cy="10" r="8.5"/><path d="M6.5 10.4l2.3 2.3 4.7-5"/>';
+        campo.appendChild(chk);
+        inp.addEventListener('input', ()=>{
+          const ok = CP_REGLAS[inp.dataset.cpValida]?.(inp.value) ?? true;
+          campo.classList.toggle('cp-ok', ok);
+          if(guia){
+            const faltan = campos.filter(c=>!(c.closest('.cp-campo')||c.parentElement).classList.contains('cp-ok'))
+                                 .map(c=>CP_NOMBRES[c.dataset.cpValida] || 'un dato');
+            guia.innerHTML = faltan.length
+              ? `Vas bien — falta <b>${faltan.join('</b> y <b>')}</b> y listo.`
+              : `<b>Todo listo.</b> Podés enviar cuando quieras.`;
+          }
+        }, {passive:true});
+      });
+    });
+  }
+  /* API para que el sitio consulte antes de enviar: CP.formListo(form) */
+  function formListo(form){
+    return $$('[data-cp-valida]', form).every(c=>{
+      return CP_REGLAS[c.dataset.cpValida]?.(c.value) ?? true;
+    });
+  }
+/* ╚═ fin E1 ═╝ */
+
+/* ╔═ E2 · CONFIRMACIÓN CON PESO <300ms ═╗
+   Uso declarativo: data-cp="confirmar" (o data-cp2 si el elemento ya usa data-cp)
+   → intercepta el click, anima 270ms, re-dispara la acción real.
+   Uso programático: CP.confirmar(el, callback) — para reemplazar alerts viejos. */
+  function confirmar(el, accion){
+    if(REDUCE){ accion && accion(); return; }         // feedback instantáneo, sin animación
+    if(!el.querySelector('.cp-sello')){
+      const s = document.createElementNS('http://www.w3.org/2000/svg','svg');
+      s.setAttribute('viewBox','0 0 24 24');
+      const wrap = document.createElement('span');
+      wrap.className = 'cp-sello';
+      s.innerHTML = '<path d="M6 12.5l4 4 8-9"/>';
+      wrap.appendChild(s);
+      el.appendChild(wrap);
+    }
+    el.classList.add('cp-confirmando');
+    setTimeout(()=> el.classList.remove('cp-confirmando'), 90);
+    setTimeout(()=> el.classList.add('cp-confirmado'), 60);
+    setTimeout(()=>{ el.classList.remove('cp-confirmado'); accion && accion(); }, 270);
+  }
+  function initConfirmar(){
+    $$('[data-cp="confirmar"], [data-cp2="confirmar"]').forEach(el=>{
+      registrarVariante(el, 'confirmar');
+      el.addEventListener('click', (e)=>{
+        if(el.dataset.cpDisparado){ delete el.dataset.cpDisparado; return; }  // re-disparo real
+        e.preventDefault(); e.stopImmediatePropagation();
+        confirmar(el, ()=>{ el.dataset.cpDisparado = '1'; el.click(); });
+      }, {capture:true});
+    });
+  }
+/* ╚═ fin E2 ═╝ */
+
+/* ╔═ CP BASE · arranque ═╗ */
+  function init(){
+    initFormEnsena(); initConfirmar();                       // E primero (feedback)
+    initMagnetico(); initTilt(); initGlow(); initLinterna(); // B
+    initSticky(); initEscalonado();                          // A + C
+    initHeroRotativo();                                       // H1
+  }
+  if(document.readyState !== 'loading') init();
+  else document.addEventListener('DOMContentLoaded', init);
+  return { confirmar, formListo, VARIANTES, REDUCE, TOUCH };
+})();
+window.CP = CP;   // API explícita para otros scripts del sitio anfitrión
+/* ╚═ fin CP BASE ═╝ */
+</script>
+
+<script>
+/* Solo para la demo: el botón confirma y muestra en consola que la acción real corre después */
+document.getElementById('demoBoton').addEventListener('click', ()=>{
+  console.log('acción real ejecutada (post-confirmación)');
+});
+</script>
+</body>
+</html>

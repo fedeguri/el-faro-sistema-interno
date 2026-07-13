@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<!--
+  ═══════════════════════════════════════════════════════════════════════════════
+  EL FARO — COMPONENTES VERTICAL SALUD · Firma visual "Pulso"
+  ═══════════════════════════════════════════════════════════════════════════════
+  Bloques independientes, listos para insertar en cualquier sitio de la vertical:
+
+    COMPONENTE 1 — Línea de pulso (divisor con latido ECG en punto configurable)
+    COMPONENTE 2 — Bloque de urgencias (accesible desde cualquier scroll)
+    COMPONENTE 3 — Ficha de tratamiento (sin antes/después — no aplica en salud)
+
+  Cada bloque delimitado con ╔═ COMPONENTE N ═╗ en CSS, HTML y JS.
+  Para un sitio nuevo: copiar TOKENS + bloque(s) + completar CONFIG_PULSO.
+
+  REGLAS DURAS de la vertical (playbook Salud — marco legal verificado):
+  - El sitio NUNCA almacena, transmite ni pide datos clínicos (Ley 26.529 + 25.326).
+    Ningún formulario con síntomas, diagnósticos ni medicación. Motivo de consulta:
+    solo lista cerrada general. La HC vive en el software médico del cliente.
+  - Rojo SOLO en el bloque de urgencias (ahí es funcional, no decorativo).
+  - Copy sin promesas ("el mejor", "indoloro", "100% efectivo") — rangos y condiciones.
+  - Fotos reales del equipo e instalaciones. El stock médico descalifica la entrega.
+  - Disclaimer: el contenido es informativo y no reemplaza la consulta profesional.
+-->
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>El Faro — Componentes Salud · Pulso</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;500;600;700&family=Lora:wght@500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════ TOKENS DE LA VERTICAL (firma "Pulso") ═══════════════
+   Blanco hueso + verde salvia O azul petróleo (elegir UNO por cliente) + acento
+   cálido para CTAs. El rojo existe SOLO para urgencias. */
+:root{
+  --hueso:  #FAF7F2;
+  --hueso-alt:#F1ECE3;
+  --tinta:  #263238;
+  --gris:   #6D7A80;
+  --clinico:#3D6B5E;          /* REEMPLAZAR por cliente: verde salvia #3D6B5E o petróleo #2F4A52 */
+  --clinico-suave:#E4EDE9;
+  --calido: #E08A5B;          /* acento cálido de CTA (coral suave / ámbar) */
+  --calido-hover:#C97644;
+  --urgencia:#B3382C;         /* rojo funcional — SOLO en el bloque de urgencias */
+  --radio:9px;
+  --f-titulo:'Lora', Georgia, serif;          /* solo titulares de historias/secciones */
+  --f-cuerpo:'Source Sans 3', system-ui, sans-serif;  /* la legibilidad ES la marca */
+  --f-mono:'IBM Plex Mono', monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:var(--f-cuerpo);background:var(--hueso);color:var(--tinta);line-height:1.65;}
+.demo-seccion{max-width:1000px;margin:0 auto;padding:4.2rem 1.4rem;}
+.eyebrow{font-family:var(--f-mono);font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--clinico);margin-bottom:.6rem;}
+h2{font-family:var(--f-titulo);font-weight:500;font-size:clamp(1.55rem,3.4vw,2.15rem);margin-bottom:1.5rem;}
+.mono{font-family:var(--f-mono);}
+@media(prefers-reduced-motion: reduce){
+  *,*::before,*::after{transition:none !important;animation:none !important;}
+}
+
+/* ╔═══════════════════ COMPONENTE 1 — LÍNEA DE PULSO ═══════════════════╗
+   Divisor horizontal plano (= calma) con UN latido ECG minimalista en el punto
+   donde vive el CTA o dato clave. El path se genera por JS según data-latido
+   ("20%" | "50%" | "80%" o cualquier porcentaje). Se anima con stroke-dashoffset
+   al entrar en viewport; con reduced-motion queda pintado fijo. */
+.pulso{display:block;width:100%;height:34px;margin:2.6rem 0;}
+.pulso path{fill:none;stroke:var(--clinico);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;}
+/* ╚════════════════════════════ fin componente 1 ════════════════════════════╝ */
+
+/* ╔═══════════════════ COMPONENTE 2 — BLOQUE DE URGENCIAS ═══════════════════╗
+   Dos piezas que trabajan juntas:
+   (a) botón fijo "Urgencias" visible desde cualquier scroll → ancla a la sección
+   (b) la sección: síntomas (lista de CONFIG), qué hacer, guardia clickeable.
+   Es CONTENIDO, no software — acá no se cargan datos del paciente. */
+.urgencias-fija{position:fixed;bottom:1.1rem;right:1.1rem;z-index:60;
+  display:inline-flex;align-items:center;gap:.5rem;
+  background:var(--urgencia);color:#fff;text-decoration:none;
+  font-weight:700;font-size:.85rem;padding:.75rem 1.15rem;border-radius:999px;
+  box-shadow:0 8px 26px rgba(179,56,44,.35);}
+.urgencias-fija svg{width:16px;height:16px;}
+.seccion-urgencias{background:#FDF3F1;border:1.5px solid var(--urgencia);border-radius:var(--radio);
+  padding:2rem 1.8rem;max-width:1000px;margin:0 auto;scroll-margin-top:1.5rem;}
+.seccion-urgencias .eyebrow{color:var(--urgencia);}
+.seccion-urgencias h2{color:var(--urgencia);margin-bottom:1rem;}
+.urgencias-cols{display:grid;grid-template-columns:1.2fr .8fr;gap:2rem;align-items:start;}
+@media(max-width:720px){.urgencias-cols{grid-template-columns:1fr;}}
+.urgencias-lista{list-style:none;display:flex;flex-direction:column;gap:.55rem;}
+.urgencias-lista li{display:flex;gap:.6rem;align-items:flex-start;font-size:.95rem;}
+.urgencias-lista svg{width:17px;height:17px;flex:0 0 auto;margin-top:.22rem;color:var(--urgencia);}
+.urgencias-accion{background:#fff;border-radius:var(--radio);padding:1.4rem;border:1px solid rgba(179,56,44,.25);}
+.urgencias-accion p{font-size:.9rem;margin-bottom:1rem;}
+.tel-guardia{display:flex;align-items:center;justify-content:center;gap:.6rem;
+  background:var(--urgencia);color:#fff;text-decoration:none;font-weight:700;
+  font-size:1.05rem;padding:.95rem;border-radius:7px;font-family:var(--f-mono);}
+.tel-guardia svg{width:18px;height:18px;}
+.urgencias-horario{font-family:var(--f-mono);font-size:.72rem;color:var(--gris);text-align:center;margin-top:.7rem;}
+/* ╚════════════════════════════ fin componente 2 ════════════════════════════╝ */
+
+/* ╔═══════════════════ COMPONENTE 3 — FICHA DE TRATAMIENTO ═══════════════════╗
+   Todo visible (salud = claridad, sin juegos de hover): qué es, qué se siente,
+   duración, cuidados, precio "desde" u obras sociales que cubren. */
+.fichas-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1.6rem;}
+.ficha-trat{background:#fff;border:1px solid var(--hueso-alt);border-radius:var(--radio);overflow:hidden;
+  display:flex;flex-direction:column;}
+.ficha-trat .foto{aspect-ratio:16/9;overflow:hidden;}
+.ficha-trat .foto img{width:100%;height:100%;object-fit:cover;display:block;}
+.ficha-trat .cuerpo{padding:1.4rem 1.4rem 1.5rem;display:flex;flex-direction:column;gap:.7rem;flex:1;}
+.ficha-trat h3{font-family:var(--f-titulo);font-weight:600;font-size:1.2rem;}
+.ficha-trat .que-es{font-size:.92rem;}
+.ficha-trat .siente{font-size:.86rem;color:var(--gris);font-style:italic;
+  border-left:3px solid var(--clinico-suave);padding-left:.8rem;}
+.trat-meta{font-family:var(--f-mono);font-size:.72rem;letter-spacing:.05em;color:var(--clinico);
+  display:flex;gap:1.1rem;flex-wrap:wrap;}
+.trat-cuidados{background:var(--clinico-suave);border-radius:6px;padding:.8rem .95rem;font-size:.84rem;}
+.trat-cuidados b{display:block;font-family:var(--f-mono);font-size:.66rem;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--clinico);margin-bottom:.3rem;font-weight:500;}
+.trat-pie{margin-top:auto;border-top:1px solid var(--hueso-alt);padding-top:.9rem;
+  display:flex;justify-content:space-between;align-items:center;gap:.8rem;flex-wrap:wrap;}
+.trat-precio{font-family:var(--f-mono);font-size:.8rem;line-height:1.6;}
+.trat-precio .os{display:block;font-size:.68rem;color:var(--gris);}
+.btn-turno{background:var(--calido);color:#fff;border:none;border-radius:6px;cursor:pointer;
+  font-family:var(--f-cuerpo);font-weight:700;font-size:.85rem;padding:.7rem 1.15rem;
+  text-decoration:none;transition:background .25s;}
+.btn-turno:hover{background:var(--calido-hover);}
+.disclaimer{font-size:.76rem;color:var(--gris);margin-top:1.6rem;max-width:70ch;}
+/* ╚════════════════════════════ fin componente 3 ════════════════════════════╝ */
+</style>
+</head>
+<body>
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true"><defs>
+<symbol id="i-alerta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3L2.5 20h19L12 3z"/><path d="M12 9.5v4.5"/><circle cx="12" cy="17" r="0.6" fill="currentColor" stroke="none"/></symbol>
+<symbol id="i-tel" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h4l1.8 4.2-2.2 1.6a12 12 0 0 0 5.6 5.6l1.6-2.2L20 15v4a1.6 1.6 0 0 1-1.8 1.6C10 19.9 4.1 14 3.4 5.8A1.6 1.6 0 0 1 5 4z"/></symbol>
+</defs></svg>
+
+<!-- ╔═══════════════════ COMPONENTE 1 — HTML ═══════════════════╗
+     Usar donde haga falta un divisor: data-latido define DÓNDE está el latido
+     (alinearlo con el CTA o el dato clave de la sección que sigue). -->
+<section class="demo-seccion">
+  <p class="eyebrow">Componente 1</p>
+  <h2>Línea de pulso — el latido marca el punto de acción</h2>
+  <svg class="pulso" data-latido="18%" aria-hidden="true"></svg>
+  <svg class="pulso" data-latido="50%" aria-hidden="true"></svg>
+  <svg class="pulso" data-latido="82%" aria-hidden="true"></svg>
+</section>
+<!-- ╚═══════════════════ fin componente 1 — HTML ═══════════════════╝ -->
+
+<!-- ╔═══════════════════ COMPONENTE 2 — HTML ═══════════════════╗ -->
+<a class="urgencias-fija" href="#urgencias">
+  <svg aria-hidden="true"><use href="#i-alerta"/></svg> Urgencias
+</a>
+
+<section class="demo-seccion">
+  <div class="seccion-urgencias" id="urgencias">
+    <p class="eyebrow">Urgencias</p>
+    <h2>¿Es una urgencia? Esto es lo que hay que hacer</h2>
+    <div class="urgencias-cols">
+      <div>
+        <ul class="urgencias-lista" id="urgenciasLista"><!-- Generado desde CONFIG_PULSO.urgencias --></ul>
+      </div>
+      <div class="urgencias-accion">
+        <p>Si estás ante alguna de estas situaciones, <strong>no esperes al turno</strong>: llamanos ahora y te indicamos cómo seguir.</p>
+        <a class="tel-guardia" id="telGuardia" href="#">
+          <svg aria-hidden="true"><use href="#i-tel"/></svg> <span id="telGuardiaTexto">Guardia</span>
+        </a>
+        <p class="urgencias-horario" id="guardiaHorario"></p>
+      </div>
+    </div>
+  </div>
+</section>
+<!-- ╚═══════════════════ fin componente 2 — HTML ═══════════════════╝ -->
+
+<!-- ╔═══════════════════ COMPONENTE 3 — HTML ═══════════════════╗
+     Dos fichas de ejemplo (demo: odontología). En el sitio real se escriben con
+     el contenido validado por el profesional — el ciclo de revisión es parte
+     del plazo de entrega (regla del playbook). -->
+<section class="demo-seccion">
+  <p class="eyebrow">Tratamientos</p>
+  <h2>Qué hacemos y cómo es cada visita</h2>
+
+  <div class="fichas-grid">
+
+    <article class="ficha-trat">
+      <div class="foto">
+        <img alt="Consultorio de limpieza y control"
+          src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 450'%3E%3Crect width='800' height='450' fill='%23E4EDE9'/%3E%3Ctext x='400' y='230' font-family='monospace' font-size='26' fill='%233D6B5E' text-anchor='middle'%3EFOTO REAL DEL CONSULTORIO (reemplazar)%3C/text%3E%3C/svg%3E">
+      </div>
+      <div class="cuerpo">
+        <h3>Limpieza y control</h3>
+        <p class="que-es">Limpieza profesional completa más revisión general para detectar a tiempo caries, sarro o problemas de encías.</p>
+        <p class="siente">Vibración y sensación de frío por momentos; puede haber sensibilidad leve que cede en el día.</p>
+        <div class="trat-meta"><span>40 MIN</span><span>CONTROL CADA 6 MESES</span></div>
+        <div class="trat-cuidados">
+          <b>Después de la visita</b>
+          Podés comer con normalidad. Si hubo sensibilidad, evitar bebidas muy frías por unas horas.
+        </div>
+        <div class="trat-pie">
+          <div class="trat-precio">Particular desde $22.000<span class="os">Cubierto por OSDE · Swiss Medical · DOSEP</span></div>
+          <a href="#" class="btn-turno" data-turno>Pedir turno</a>
+        </div>
+      </div>
+    </article>
+
+    <article class="ficha-trat">
+      <div class="foto">
+        <img alt="Equipo de implantes"
+          src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 450'%3E%3Crect width='800' height='450' fill='%23EFE6D9'/%3E%3Ctext x='400' y='230' font-family='monospace' font-size='26' fill='%23A0764B' text-anchor='middle'%3EFOTO REAL DEL EQUIPO (reemplazar)%3C/text%3E%3C/svg%3E">
+      </div>
+      <div class="cuerpo">
+        <h3>Implante dental</h3>
+        <p class="que-es">Reemplazo de una pieza perdida con un implante de titanio y corona definitiva, en etapas planificadas.</p>
+        <p class="siente">La colocación es con anestesia local; molestia moderada los primeros 2-3 días, manejable con la medicación indicada.</p>
+        <div class="trat-meta"><span>2-3 ETAPAS</span><span>PROCESO DE 3 A 6 MESES</span></div>
+        <div class="trat-cuidados">
+          <b>Antes y después</b>
+          Requiere evaluación previa con estudio de imagen. Primeras 48 hs: dieta blanda y frío local según indicación.
+        </div>
+        <div class="trat-pie">
+          <div class="trat-precio">Particular desde $650.000<span class="os">Plan de pago en etapas · Presupuesto sin cargo</span></div>
+          <a href="#" class="btn-turno" data-turno>Pedir evaluación</a>
+        </div>
+      </div>
+    </article>
+
+  </div>
+  <p class="disclaimer">La información de esta página es orientativa y no reemplaza la consulta profesional. Duración, cantidad de sesiones y valores se confirman en la evaluación de cada paciente.</p>
+</section>
+<!-- ╚═══════════════════ fin componente 3 — HTML ═══════════════════╝ -->
+
+<script>
+/* ════════════════════════════════════════════════════════════════════════════
+   CONFIG_PULSO — único lugar con datos del cliente.
+   RECORDATORIO LEGAL: este CONFIG jamás incluye ni pide datos de pacientes.
+   ════════════════════════════════════════════════════════════════════════════ */
+const CONFIG_PULSO = {
+  nombreClinica: 'Clínica Odontológica Mitre',
+  telGuardia: '+542664000000',            // REEMPLAZAR: con código de país, para href tel:
+  telGuardiaVisible: '(266) 400-0000',
+  guardiaHorario: 'GUARDIA: LUN A SÁB 8-22 HS · FUERA DE HORARIO DERIVAMOS A EMERGENCIAS 107',
+  linkTurnos: 'https://REEMPLAZAR-motor-de-turnos',  // Doctoralia widget / Turnito / portal propio
+  // Lista de situaciones de urgencia DE LA ESPECIALIDAD (demo: odontología).
+  // La redacta/valida el profesional — es contenido clínico general, no datos de pacientes.
+  urgencias: [
+    'Dolor agudo que no cede con analgésicos comunes',
+    'Golpe o traumatismo con pieza floja, fracturada o salida',
+    'Hinchazón en la cara o encía, sobre todo con fiebre',
+    'Sangrado que no se detiene después de una extracción',
+  ]
+};
+const REDUCE_P = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+/* ╔═══════════════════ COMPONENTE 1 — JS ═══════════════════╗
+   Genera el path de cada línea de pulso con el latido en el % que indique
+   data-latido, y lo anima con stroke-dashoffset al entrar al viewport. */
+function pathPulso(pct){
+  // viewBox 0 0 1000 34 · línea plana en y=17 con latido ECG centrado en x=pct
+  const x = Math.max(60, Math.min(940, 1000 * pct));
+  return `M0,17 H${x-34} L${x-22},17 L${x-14},4 L${x-4},30 L${x+4},10 L${x+10},17 H1000`;
+}
+document.querySelectorAll('.pulso').forEach(svg=>{
+  svg.setAttribute('viewBox','0 0 1000 34');
+  svg.setAttribute('preserveAspectRatio','none');
+  const pct = parseFloat(svg.dataset.latido || '50') / 100;
+  const p = document.createElementNS('http://www.w3.org/2000/svg','path');
+  p.setAttribute('d', pathPulso(pct));
+  svg.appendChild(p);
+  if(REDUCE_P || !('IntersectionObserver' in window)) return;   // fijo
+  const largo = p.getTotalLength ? p.getTotalLength() : 1100;
+  p.style.strokeDasharray = largo;
+  p.style.strokeDashoffset = largo;
+  p.style.transition = 'stroke-dashoffset 1.4s ease-out';
+  new IntersectionObserver((es,obs)=>{
+    es.forEach(e=>{ if(e.isIntersecting){ p.style.strokeDashoffset = 0; obs.unobserve(e.target); } });
+  },{threshold:.4}).observe(svg);
+});
+/* ╚═══════════════════ fin componente 1 — JS ═══════════════════╝ */
+
+/* ╔═══════════════════ COMPONENTE 2 — JS ═══════════════════╗ */
+const uLista = document.getElementById('urgenciasLista');
+CONFIG_PULSO.urgencias.forEach(u=>{
+  const li = document.createElement('li');
+  li.innerHTML = `<svg aria-hidden="true"><use href="#i-alerta"/></svg><span>${u}</span>`;
+  uLista.appendChild(li);
+});
+const telG = document.getElementById('telGuardia');
+telG.href = 'tel:' + CONFIG_PULSO.telGuardia;
+document.getElementById('telGuardiaTexto').textContent = 'Guardia ' + CONFIG_PULSO.telGuardiaVisible;
+document.getElementById('guardiaHorario').textContent = CONFIG_PULSO.guardiaHorario;
+/* ╚═══════════════════ fin componente 2 — JS ═══════════════════╝ */
+
+/* ╔═══════════════════ COMPONENTE 3 — JS ═══════════════════╗
+   Los botones de turno apuntan al motor del cliente (Doctoralia/Turnito/portal).
+   Regla del playbook: el motor se prueba con un turno real antes de entregar. */
+document.querySelectorAll('[data-turno]').forEach(a=>{
+  a.href = CONFIG_PULSO.linkTurnos;
+  a.target = '_blank';
+  a.rel = 'noopener';
+});
+/* ╚═══════════════════ fin componente 3 — JS ═══════════════════╝ */
+</script>
+</body>
+</html>
